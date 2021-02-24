@@ -39,6 +39,7 @@ export async function gen(opt: Options): Promise<string> {
   } = opt;
   let { gitUrls } = opt;
 
+  // 先清空一波旧有文件
   fs.removeSync(baseDir);
   console.info(`Clean dir: ${baseDir}`);
 
@@ -51,8 +52,14 @@ export async function gen(opt: Options): Promise<string> {
   const firstUrl = gitUrls.splice(0, 1)
 
   // 检测是否有依赖proto配置，先匹配出依赖项
+  // 依赖一般配置在对象参数的deps中,值为仓库地址
+
+  /**
+   * 配置项的依赖仓库地址集合
+   */
   const libMap: { [url: string]: GitConfig } = {}
   gitUrls = gitUrls.filter((item) => {
+    // 如果type === 'lib'证明这是个依赖,则删掉
     if (typeof (item) === 'object' && item.type === "lib"){
       libMap[item.url] = item;
       return false;
@@ -64,9 +71,16 @@ export async function gen(opt: Options): Promise<string> {
   let alljson: { [propname: string]: any } = {}
 
   await Promise.all(gitUrls.map(async (gitConfig: GitConfig | string) => {
-    // 解析依赖库
+    /**
+     * 依赖的仓库地址列表
+     */
     let deps: Array<GitConfig | string> = [];
+
     if (typeof (gitConfig) === 'object' && gitConfig.deps && gitConfig.deps.length) {
+      // 针对有依赖的配置项
+      // 去查询libMap中有没有记录
+      // 如果没有,证明有配置项声明了依赖但是没有配置依赖仓库,直接报错
+      // 如果有,压入deps中
       deps = gitConfig.deps.map((item: string)=>{
         const lib = libMap[item];
         if (!lib) {
@@ -76,8 +90,13 @@ export async function gen(opt: Options): Promise<string> {
         return lib
       });
     }
-
+    /**
+     * 配置项的仓库地址
+     */
     const newUrl: string = typeof gitConfig === 'string' ? gitConfig : gitConfig.url
+    /**
+     * 配置项的host
+     */
     const host: string = typeof gitConfig === 'object' ? (gitConfig.host ||'' ) : ''
     const root = await loadProto({
       gitUrls: [...firstUrl, ...deps, gitConfig],
