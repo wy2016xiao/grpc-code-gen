@@ -98,6 +98,7 @@ export async function gen(opt: Options): Promise<string> {
      * 配置项的host
      */
     const host: string = typeof gitConfig === 'object' ? (gitConfig.host ||'' ) : ''
+    // 下载全部proto
     const root = await loadProto({
       gitUrls: [...firstUrl, ...deps, gitConfig],
       branch,
